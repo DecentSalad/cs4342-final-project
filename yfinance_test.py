@@ -21,5 +21,3 @@ def get_daily_returns(ticker: str, period: str='1mo', progress=False):
     returns = np.diff(close_prices) / close_prices[:-1] # returns = (P_t - P_{t-1}) / P_{t-1}
 
     return returns
-
-print(get_daily_returns('AAPL'))
