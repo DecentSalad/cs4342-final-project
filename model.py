@@ -150,3 +150,9 @@ if __name__ == "__main__":
     voo_predictions = predict_stock('VOO', lookback=lookback)
     nvda_predictions = predict_stock('NVDA', lookback=lookback)
     mu_predictions = predict_stock('MU', lookback=lookback)
+    pltr_predictions = predict_stock('PLTR', lookback=lookback)
+
+    # todo:
+    # currently, the model trains only on the stock to be predicted.
+    # i want to have a single model that can predict any stock and take segments of market data as training
+    # i also want to experiment with other models than mlps

@@ -38,7 +38,7 @@ def print_predictions(ticker, predictions, n_days):
     print(f"{'=' * 60}\n")
 
 
-def plot_predicted_prices(ticker, predictions, lookback_days=30):
+def plot_predicted_prices(ticker, predictions, lookback_days=10):
     """
     Plot historical prices and predicted future prices.
 
