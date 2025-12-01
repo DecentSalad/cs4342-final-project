@@ -7,7 +7,7 @@ import os
 
 from StockReturnsDataset import StockReturnsDataset
 from yfinance_test import get_daily_returns
-from visualization import plot_mse_loss, print_predictions
+from visualization import plot_mse_loss, print_predictions, plot_predicted_prices
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -141,6 +141,7 @@ if __name__ == "__main__":
                 input_sequence = np.append(input_sequence, single_day_return)
 
         print_predictions(ticker, predictions, forecast_days)
+        plot_predicted_prices(ticker, predictions)
 
         return predictions
 
