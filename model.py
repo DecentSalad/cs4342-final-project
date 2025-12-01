@@ -2,11 +2,13 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 import torch.nn as nn
-import matplotlib.pyplot as plt
 import yfinance as yf
+import pandas as pd
+import os
 
 from StockReturnsDataset import StockReturnsDataset
 from yfinance_test import get_daily_returns
+from visualization import plot_mse_loss
 
 def prepare_data(ticker: str, lookback=10, forecast_days=5, batch_size=32):
     returns = get_daily_returns(ticker, period='2y')
@@ -93,62 +95,20 @@ def train_model(model, train_loader, test_loader, epochs=10, lr=0.001):
 
     return train_losses, test_losses
 
-def predict(model, ticker, lookback=10, forecast_days=5, from_date=None):
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model.to(device)
-    model.eval()
-
-    df = yf.download(ticker, period='5y', interval='1d')
-
-    if from_date is not None:
-        df = df[df.index <= from_date]
-        if len(df) < lookback + 1:
-            raise ValueError(f"Not enough data for prediction. Need at least {lookback + 1} days.")
-
-    close_prices = df['Close'].to_numpy().ravel()
-    prediction_date = df.index[-1].strftime('%Y-%m-%d')
-
-    current_price = close_prices[-1]
-
-    recent_returns = np.diff(close_prices[-lookback - 1:]) / close_prices[-lookback - 1:-1]
-
-    with torch.no_grad():
-        input_tensor = torch.tensor(recent_returns, dtype=torch.float32).unsqueeze(0).to(device)
-        predicted_return = model(input_tensor).item()
-
-    predicted_price = current_price * (1 + predicted_return)
-
-    from datetime import datetime, timedelta
-    current_date = datetime.strptime(prediction_date, '%Y-%m-%d')
-    target_date = current_date + timedelta(days=forecast_days)
-    target_date_str = target_date.strftime('%Y-%m-%d')
-
-    print(f"\n{'=' * 50}")
-    print(f"Ticker: {ticker}")
-    print(f"Price on {prediction_date}: ${current_price:.2f}")
-    print(f"Predicted Return ({forecast_days} days): {predicted_return:.4f} ({predicted_return * 100:.2f}%)")
-    print(f"Predicted Price on ~{target_date_str}: ${predicted_price:.2f}")
-    print(f"Expected Change: ${predicted_price - current_price:.2f}")
-    print(f"{'=' * 50}\n")
-
-    return current_price, predicted_price, predicted_return
-
 if __name__ == "__main__":
-    train_loader, test_loader = prepare_data(ticker='AAPL', lookback=10, forecast_days=5)
+    def predict_stock(ticker, lookback=10, forecast_days=5, start_date=None):
+        train_loader, test_loader = prepare_data(ticker, lookback, forecast_days)
 
-    model = StockMLP(input_size=10, hidden_sizes=[64, 32, 16], dropout=0.2)
-    print(f"Model parameters: {sum(p.numel() for p in model.parameters())}")
+        model_path = f'stock_mlp_{ticker}.pth'
+        model = StockMLP(input_size=lookback, hidden_sizes=[64, 32, 16], dropout=0.2)
 
-    train_losses, test_losses = train_model(model, train_loader, test_loader, epochs=100, lr=0.001)
+        if os.path.exists(model_path):
+            model.load_state_dict(torch.load(model_path))
+        else:
+            train_loader, test_loader = prepare_data(ticker, lookback, forecast_days)
+            train_losses, test_losses = train_model(model, train_loader, test_loader, epochs=100, lr=0.001)
+            torch.save(model.state_dict(), model_path)
 
-    torch.save(model.state_dict(), 'stock_mlp.pth')
 
-    def plot_mse_loss():
-        plt.plot(train_losses, label='Train Loss')
-        plt.plot(test_losses, label='Test Loss')
-        plt.xlabel('Epoch')
-        plt.ylabel('MSE Loss')
-        plt.legend()
-        plt.show()
 
-    predict(model, 'AAPL', from_date='2024-11-01')
+    predict_stock('NVDA', start_date='2025-11-01')
