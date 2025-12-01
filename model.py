@@ -3,12 +3,13 @@ import torch
 from torch.utils.data import DataLoader
 import torch.nn as nn
 import yfinance as yf
-import pandas as pd
 import os
 
 from StockReturnsDataset import StockReturnsDataset
 from yfinance_test import get_daily_returns
-from visualization import plot_mse_loss
+from visualization import plot_mse_loss, print_predictions
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def prepare_data(ticker: str, lookback=10, forecast_days=5, batch_size=32):
     returns = get_daily_returns(ticker, period='2y')
@@ -50,7 +51,6 @@ class StockMLP(nn.Module):
         return self.network(x).squeeze(-1)
 
 def train_model(model, train_loader, test_loader, epochs=10, lr=0.001):
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device)
 
     criterion = nn.MSELoss()
@@ -96,9 +96,7 @@ def train_model(model, train_loader, test_loader, epochs=10, lr=0.001):
     return train_losses, test_losses
 
 if __name__ == "__main__":
-    def predict_stock(ticker, lookback=10, forecast_days=5, start_date=None):
-        train_loader, test_loader = prepare_data(ticker, lookback, forecast_days)
-
+    def predict_stock(ticker, lookback=10, forecast_days=5):
         model_path = f'stock_mlp_{ticker}.pth'
         model = StockMLP(input_size=lookback, hidden_sizes=[64, 32, 16], dropout=0.2)
 
@@ -109,6 +107,41 @@ if __name__ == "__main__":
             train_losses, test_losses = train_model(model, train_loader, test_loader, epochs=100, lr=0.001)
             torch.save(model.state_dict(), model_path)
 
+        df = yf.download(ticker, period='1mo', interval='1d', progress=False)['Close']
+        close_prices = df.to_numpy().ravel()
 
+        returns = np.diff(close_prices) / close_prices[:-1]
 
-    predict_stock('NVDA', start_date='2025-11-01')
+        recent_returns = returns[-lookback:]
+        current_price = close_prices[-1]
+
+        predictions = {
+            'dates' : [],
+            'predicted_prices' : [],
+            'predicted_returns' : [],
+            'current_price' : current_price,
+        }
+
+        input_sequence = recent_returns.copy()
+        predicted_price = current_price
+
+        for i in range(forecast_days):
+            X = torch.tensor(input_sequence[-lookback:], dtype=torch.float32).unsqueeze(0).to(device)
+
+            with torch.no_grad():
+                predicted_cumulative_return = model(X).item()
+
+                single_day_return = (1 + predicted_cumulative_return) ** (1 / forecast_days) - 1
+
+                predicted_price *= (1 + single_day_return)
+
+                predictions['predicted_prices'].append(predicted_price)
+                predictions['predicted_returns'].append(single_day_return)
+
+                input_sequence = np.append(input_sequence, single_day_return)
+
+        return predictions
+
+    nvda_predictions = predict_stock('NVDA')
+
+    print_predictions('NVDA', nvda_predictions, 5)
