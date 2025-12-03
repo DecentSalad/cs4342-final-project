@@ -96,7 +96,7 @@ def train_model(model, train_loader, test_loader, epochs=10, lr=0.001):
     return train_losses, test_losses
 
 if __name__ == "__main__":
-    def predict_stock(ticker, lookback=10, forecast_days=5):
+    def predict_stock(ticker, lookback=20, forecast_days=5):
         model_path = f'stock_mlp_{ticker}.pth'
         model = StockMLP(input_size=lookback, hidden_sizes=[64, 32, 16], dropout=0.2)
 
