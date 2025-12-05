@@ -147,10 +147,12 @@ if __name__ == "__main__":
 
     lookback = 80
 
-    voo_predictions = predict_stock('VOO', lookback=lookback)
-    nvda_predictions = predict_stock('NVDA', lookback=lookback)
-    mu_predictions = predict_stock('MU', lookback=lookback)
+    # voo_predictions = predict_stock('VOO', lookback=lookback)
+    # nvda_predictions = predict_stock('NVDA', lookback=lookback)
+    # mu_predictions = predict_stock('MU', lookback=lookback)
     pltr_predictions = predict_stock('PLTR', lookback=lookback)
+    rtx_predictions = predict_stock('RTX', lookback=lookback)
+    nflx_predictions = predict_stock('NFLX', lookback=lookback)
 
     # todo:
     # currently, the model trains only on the stock to be predicted.
