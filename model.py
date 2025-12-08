@@ -10,16 +10,23 @@ from visualization import visualize_test
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class StockLSTM(nn.Module):
-    def __init__(self, input_size=5, hidden_size=64, num_layers=2, forecast_days=5):
+    def __init__(self, input_size=5, hidden_size=128, num_layers=3, forecast_days=5, dropout=0.2):
         super().__init__()
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
-        self.fc = nn.Linear(hidden_size, forecast_days)
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers,
+                           batch_first=True, dropout=dropout)
+        self.fc1 = nn.Linear(hidden_size, hidden_size // 2)
+        self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(dropout)
+        self.fc2 = nn.Linear(hidden_size // 2, forecast_days)
 
     def forward(self, x):
         out, _ = self.lstm(x)
-        return self.fc(out[:, -1, :])
+        out = self.fc1(out[:, -1, :])
+        out = self.relu(out)
+        out = self.dropout(out)
+        return self.fc2(out)
 
-def train_model(model, train_loader, test_loader, epochs=10, epsilon=0.001, lambda_reg=0.001):
+def train_model(model, train_loader, test_loader, epochs=10, epsilon=0.01, lambda_reg=0.01):
     criterion = nn.MSELoss()
 
     optimizer = torch.optim.Adam(
@@ -90,7 +97,7 @@ def predict(model, dataset, num_predictions=5):
     with torch.no_grad():
         for i in range(min(num_predictions, len(dataset))):
             features, targets = dataset[i]
-            features = features.unsqueeze(0).to(device)  # Add batch dimension
+            features = features.unsqueeze(0).to(device)
 
             prediction = model(features)
 
@@ -117,12 +124,12 @@ if __name__ == "__main__":
     lookback = 10
     forecast_days = 5
 
-    hidden_size = 64
+    hidden_size = 128
 
     batch_size = 32
-    epochs = 10
-    epsilon = 0.001
-    lambda_reg = 0.001
+    epochs = 50
+    epsilon = 0.01
+    lambda_reg = 0.01
 
     tickers = ['AAPL', 'MSFT', 'AMZN', 'GOOGL']
 
@@ -153,11 +160,20 @@ if __name__ == "__main__":
     print(f"Predictions shape: {predictions.shape}")
     print(f"Actuals shape: {actuals.shape}")
 
-    print("\nFirst 5 predictions:")
-    print(predictions[:5])
+    predictions_dollars = []
+    actuals_dollars = []
 
-    predictions_dollars = d_test.denormalize(predictions)
-    actuals_dollars = d_test.denormalize(actuals)
+    for i in range(len(predictions)):
+        current_price = test_ohlcv[i + lookback - 1, 3]
+
+        pred_prices = current_price * (1 + predictions[i])
+        actual_prices = current_price * (1 + actuals[i])
+
+        predictions_dollars.append(pred_prices)
+        actuals_dollars.append(actual_prices)
+
+    predictions_dollars = np.array(predictions_dollars)
+    actuals_dollars = np.array(actuals_dollars)
 
     print(f"\nFirst 5 predictions in dollars: {predictions_dollars[:5]}")
     print(f"First 5 actuals in dollars: {actuals_dollars[:5]}")

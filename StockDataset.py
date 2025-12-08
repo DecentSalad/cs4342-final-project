@@ -10,9 +10,8 @@ class StockDataset(Dataset):
 
         self.mean = ohlcv.mean(axis=0)
         self.std = ohlcv.std(axis=0)
-        self.ohlcv_norm = (ohlcv - self.mean) / (self.std + 1e-8)
 
-        self.close_prices = self.ohlcv_norm[:, 3]
+        self.close_prices = self.ohlcv[:, 3]
         self.X, self.y = self._create_sequences()
 
     def __len__(self):
@@ -28,9 +27,13 @@ class StockDataset(Dataset):
         X, y = [], []
         for i in range(len(self.close_prices) - self.lookback - self.forecast_days):
             features = self.ohlcv_norm[i:i + self.lookback]
-            future_closes = self.close_prices[i + self.lookback:i + self.lookback + self.forecast_days]
+
+            current_price = self.ohlcv[i + self.lookback - 1, 3]
+            future_closes = self.ohlcv[i + self.lookback:i + self.lookback + self.forecast_days, 3]
+            pct_changes = (future_closes - current_price) / current_price
+
             X.append(features)
-            y.append(future_closes)
+            y.append(pct_changes)
         return np.array(X, dtype=np.float32), np.array(y, dtype=np.float32)
 
     def denormalize(self, normalized_prices):
