@@ -32,3 +32,6 @@ class StockDataset(Dataset):
             X.append(features)
             y.append(future_closes)
         return np.array(X, dtype=np.float32), np.array(y, dtype=np.float32)
+
+    def denormalize(self, normalized_prices):
+        return normalized_prices * self.std[3] + self.mean[3]

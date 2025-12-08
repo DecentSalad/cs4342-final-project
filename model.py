@@ -71,6 +71,37 @@ def get_ohlcv(ticker: str, period: str='1mo', interval: str='1d'):
     df = yf.download(ticker, period=period, interval=interval)
     return df.to_numpy()
 
+
+def predict(model, dataset, num_predictions=5):
+    model.eval()
+    model.to(device)
+
+    predictions_list = []
+    actuals_list = []
+
+    with torch.no_grad():
+        for i in range(min(num_predictions, len(dataset))):
+            features, targets = dataset[i]
+            features = features.unsqueeze(0).to(device)  # Add batch dimension
+
+            prediction = model(features)
+
+            predictions_list.append(prediction.cpu().numpy()[0])
+            actuals_list.append(targets.numpy())
+
+    return np.array(predictions_list), np.array(actuals_list)
+
+
+def predict_future(model, recent_data, forecast_days=5):
+    model.eval()
+    model.to(device)
+
+    with torch.no_grad():
+        features = torch.tensor(recent_data, dtype=torch.float32).unsqueeze(0).to(device)
+        predictions = model(features)
+
+    return predictions.cpu().numpy()[0]
+
 if __name__ == "__main__":
     print('hello, world!')
 
@@ -105,3 +136,18 @@ if __name__ == "__main__":
     model = StockLSTM(input_size=5, hidden_size=hidden_size, forecast_days=forecast_days)
 
     trained_model = train(model, train_loader, test_loader, epochs=epochs, epsilon=epsilon, lambda_reg=lambda_reg)
+
+    predictions, actuals = predict(trained_model, d_test, num_predictions=86)
+
+    print(f"Predictions shape: {predictions.shape}")
+    print(f"Actuals shape: {actuals.shape}")
+
+    print("\nFirst 5 predictions:")
+    print(predictions[:5])
+
+    predictions_dollars = d_test.denormalize(predictions)
+    actuals_dollars = d_test.denormalize(actuals)
+
+    print(f"\nFirst 5 predictions in dollars: {predictions_dollars[:5]}")
+    print(f"First 5 actuals in dollars: {actuals_dollars[:5]}")
+    print(predictions_dollars[:5])
