@@ -19,7 +19,7 @@ class StockLSTM(nn.Module):
         out, _ = self.lstm(x)
         return self.fc(out[:, -1, :])
 
-def train(model, train_loader, test_loader, epochs=10, epsilon=0.001, lambda_reg=0.001):
+def train_model(model, train_loader, test_loader, epochs=10, epsilon=0.001, lambda_reg=0.001):
     criterion = nn.MSELoss()
 
     optimizer = torch.optim.Adam(
@@ -146,7 +146,7 @@ if __name__ == "__main__":
 
     model = StockLSTM(input_size=5, hidden_size=hidden_size, forecast_days=forecast_days)
 
-    trained_model = train(model, train_loader, test_loader, epochs=epochs, epsilon=epsilon, lambda_reg=lambda_reg)
+    trained_model = train_model(model, train_loader, test_loader, epochs=epochs, epsilon=epsilon, lambda_reg=lambda_reg)
 
     predictions, actuals = predict(trained_model, d_test, num_predictions=86)
 
@@ -163,4 +163,4 @@ if __name__ == "__main__":
     print(f"First 5 actuals in dollars: {actuals_dollars[:5]}")
     print(predictions_dollars[:5])
 
-    visualize_test(predictions_dollars[1], actuals_dollars[1])
+    [visualize_test(predictions_dollars[i], actuals_dollars[i]) for i in range(5)]
