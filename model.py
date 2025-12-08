@@ -5,6 +5,7 @@ import torch.nn as nn
 import yfinance as yf
 
 from StockDataset import StockDataset
+from visualization import visualize_test
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -151,3 +152,5 @@ if __name__ == "__main__":
     print(f"\nFirst 5 predictions in dollars: {predictions_dollars[:5]}")
     print(f"First 5 actuals in dollars: {actuals_dollars[:5]}")
     print(predictions_dollars[:5])
+
+    visualize_test(predictions_dollars[1], actuals_dollars[1])
