@@ -68,10 +68,17 @@ def train(model, train_loader, test_loader, epochs=10, epsilon=0.001, lambda_reg
 
     return model
 
-def get_ohlcv(ticker: str, period: str='1mo', interval: str='1d'):
-    df = yf.download(ticker, period=period, interval=interval)
-    return df.to_numpy()
+def get_ohlcv(tickers: list[str], period='1mo', interval='1d'):
+    if isinstance(tickers, str):
+        tickers = [tickers]
 
+    all_data = []
+
+    for t in tickers:
+        df = yf.download(t, period=period, interval=interval, progress=False, auto_adjust=True)
+        all_data.append(df.to_numpy())
+
+    return np.vstack(all_data) if all_data else np.array([])
 
 def predict(model, dataset, num_predictions=5):
     model.eval()
@@ -117,7 +124,10 @@ if __name__ == "__main__":
     epsilon = 0.001
     lambda_reg = 0.001
 
-    ohlcv = get_ohlcv('AAPL', period='2y', interval='1d')
+    tickers = ['AAPL', 'MSFT', 'AMZN', 'GOOGL']
+
+    ohlcv = get_ohlcv(tickers, period='2y', interval='1d')
+    print(len(ohlcv))
 
     train_size = int(len(ohlcv) * 0.8)
     train_ohlcv = ohlcv[:train_size]
