@@ -2,35 +2,14 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 import torch.nn as nn
-import yfinance as yf
+import os
 
 from StockDataset import StockDataset
+from StockLSTM import StockLSTM
 from visualization import visualize_test
+from yfinance_test import get_samples
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-class StockLSTM(nn.Module):
-    def __init__(self, input_size=5, hidden_size=128, num_layers=3, forecast_days=5, dropout=0.2):
-        super(StockLSTM, self).__init__()
-
-        self.lstm = nn.LSTM(
-            input_size=input_size,
-            hidden_size=hidden_size,
-            num_layers=num_layers,
-            batch_first=True,
-            dropout=dropout
-        )
-
-        self.fc = nn.Linear(hidden_size, forecast_days)
-
-    def forward(self, x):
-        lstm_out, _ = self.lstm(x)
-        last_hidden = lstm_out[:, -1, :]
-
-        out = self.fc(last_hidden)
-
-        return out
-
 
 def train_model(model, train_loader, test_loader, epochs=10, epsilon=0.01, lambda_reg=0.0001):
     model = model.to(device)
@@ -78,35 +57,6 @@ def train_model(model, train_loader, test_loader, epochs=10, epsilon=0.01, lambd
 
     return model
 
-def get_samples(ticker: str, period='2y', lookback=10, forecast_days=5):
-    data = yf.download(ticker, period=period, auto_adjust=True)
-    prices = data.values
-    dates = data.index.strftime('%Y-%m-%d').tolist()
-
-    sample_len = lookback + forecast_days
-
-    samples, means, stds, sample_dates, sample_tickers = [], [], [], [], []
-    for i in range(len(prices) - sample_len + 1):
-        sample_window = prices[i: i + sample_len]
-        date_window = dates[i: i + sample_len]
-
-        input_portion = sample_window[:lookback]
-
-        mean = input_portion.mean(axis=0)
-        std = input_portion.std(axis=0, ddof=0)
-
-        std[std == 0] = 1.0
-
-        norm_sample = (sample_window - mean) / std
-
-        samples.append(norm_sample)
-        means.append(mean)
-        stds.append(std)
-        sample_dates.append(date_window)
-        sample_tickers.append(ticker)
-
-    return np.array(samples), np.array(means), np.array(stds), np.array(sample_dates), np.array(sample_tickers) # Return sample_tickers
-
 def predict(model, sample, mean, std, lookback=10, forecast_days=5):
     model.eval()
     with torch.no_grad():
@@ -121,6 +71,7 @@ def predict(model, sample, mean, std, lookback=10, forecast_days=5):
 
 if __name__ == "__main__":
     print('hello, world!')
+    print('number of cores: ', os.cpu_count())
 
     # hyperparameters
     lookback = 60
@@ -158,6 +109,7 @@ if __name__ == "__main__":
             lookback=lookback,
             forecast_days=forecast_days
         )
+
         all_samples[ticker] = samples
         all_means[ticker] = means
         all_stds[ticker] = stds
@@ -199,6 +151,7 @@ if __name__ == "__main__":
     model = StockLSTM(input_size=5, hidden_size=hidden_size, forecast_days=forecast_days)
 
     trained_model = train_model(model, train_loader, test_loader, epochs=epochs, epsilon=epsilon, lambda_reg=lambda_reg)
+    print("\n")
 
     for i in range(5):
         sample = testing_samples[0][i]
@@ -221,8 +174,10 @@ if __name__ == "__main__":
 
 
         print(f"--- Visualization Sample {i+1} ({viz_ticker}) ---")
-        print("Predicted next 5 days:", preds)
-        print("Actual next 5 days:", actuals)
-        print("Dates:", prediction_dates)
+        print("Predicted next 5 days:", [f"{p:.2f}" for p in preds])
+        print("Actual next 5 days:", [f"{a:.2f}" for a in actuals])
 
         visualize_test(preds, actuals, historical_prices, dates=plot_dates, ticker=viz_ticker)
+
+        print(f"prediction MSE: {np.mean(np.square(preds - actuals))}")
+        print("\n")
