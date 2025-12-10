@@ -192,9 +192,9 @@ if __name__ == "__main__":
                                                              period=data_collection_period, lookback=lookback,
                                                              forecast_days=forecast_days)
 
-    retrain = False
+    retrain = True
 
-    trained_model = train_model(model, train_loader, test_loader, epochs=epochs, epsilon=epsilon, lambda_reg=lambda_reg) if True else ...
+    trained_model = train_model(model, train_loader, test_loader, epochs=epochs, epsilon=epsilon, lambda_reg=lambda_reg) if retrain else ...
 
     future_preds = predict_future(trained_model, 'AAPL', lookback=lookback, forecast_days=forecast_days)
     visualize_future(future_preds, ticker='AAPL', lookback=lookback)
