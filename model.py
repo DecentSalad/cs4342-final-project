@@ -13,7 +13,7 @@ from yfinance_test import get_samples
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def train_model(model, train_loader, test_loader, epochs=10, epsilon=0.01, lambda_reg=0.0001):
+def train_model(model, train_loader, test_loader, epochs=10, epsilon=0.005, lambda_reg=0.0001):
     model = model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=epsilon)
     criterion = nn.MSELoss()
@@ -63,6 +63,28 @@ def train_model(model, train_loader, test_loader, epochs=10, epsilon=0.01, lambd
 
     return model
 
+def tune_model(model, tickers: list[str], training_proportion=0.8, period='1y', lookback=10, forecast_days=5,
+               epochs=2, epsilon=0.01, lambda_reg=0.0001):
+    train_loader, test_loader, _ = get_loaders(
+        tickers,
+        training_proportion=training_proportion,
+        period=period, lookback=lookback,
+        forecast_days=forecast_days
+    )
+
+    tuned_model = train_model(
+        model,
+        train_loader,
+        test_loader,
+        epochs=epochs,
+        epsilon=epsilon,
+        lambda_reg=lambda_reg
+    )
+
+    # save tuned model
+
+    return tuned_model
+
 def optimize_hyperparameters(model, train_loader, test_loader):
     pass
 
@@ -77,7 +99,6 @@ def predict(model, sample, mean, std, lookback=10, forecast_days=5):
         preds_denorm = preds * std[3] + mean[3]
 
     return preds_denorm
-
 
 def predict_future(model, ticker: str, lookback=10, forecast_days=5, period='1y'):
     samples, means, stds, dates, sample_tickers = get_samples(
@@ -196,8 +217,20 @@ if __name__ == "__main__":
 
     trained_model = train_model(model, train_loader, test_loader, epochs=epochs, epsilon=epsilon, lambda_reg=lambda_reg) if retrain else ...
 
-    future_preds = predict_future(trained_model, 'AAPL', lookback=lookback, forecast_days=forecast_days)
-    visualize_future(future_preds, ticker='AAPL', lookback=lookback)
+    future_aapl_preds = predict_future(trained_model, 'AAPL', lookback=lookback, forecast_days=forecast_days)
+    visualize_future(future_aapl_preds, ticker='AAPL', lookback=lookback)
+
+    tech_model = tune_model(
+        trained_model,
+        tech,
+        training_proportion=training_proportion,
+        period=data_collection_period,
+        lookback=lookback,
+        forecast_days=forecast_days
+    )
+
+    tuned_future_aapl_preds = predict_future(tech_model, 'AAPL', lookback=lookback, forecast_days=forecast_days)
+    visualize_future(tuned_future_aapl_preds, ticker='AAPL', lookback=lookback)
 
     # for i in range(5):
     #     sample = testing_samples[0][i]
