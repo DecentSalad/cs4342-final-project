@@ -126,7 +126,8 @@ if __name__ == "__main__":
     data_collection_period = '1y'
 
     tickers = [
-        'SPY', 'XLK', 'XLF', 'XLV', 'XLE', 'XLI', 'XLY', 'XLRE', 'XLU', 'XLC', 'SOXX' # sector etfs
+        'SPY', 'XLK', 'XLF', 'XLV', 'XLE', 'XLI', 'XLY', 'XLRE', 'XLU', 'XLC', 'SOXX', # sector etfs
+        'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'FB', 'TSLA', 'NVDA', 'JPM', 'V', 'JNJ', # top 10 stocks by market cap
     ]
 
     print(f"Number of stocks: {len(tickers)}")
