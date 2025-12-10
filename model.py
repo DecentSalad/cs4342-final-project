@@ -3,6 +3,7 @@ import torch
 from torch.utils.data import DataLoader
 import torch.nn as nn
 import os
+import time
 from scipy.optimize import minimize, differential_evolution
 
 from StockDataset import StockDataset
@@ -18,6 +19,8 @@ def train_model(model, train_loader, test_loader, epochs=10, epsilon=0.01, lambd
     criterion = nn.MSELoss()
 
     for epoch in range(epochs):
+        epoch_start_time = time.time()
+
         model.train()
         train_loss = 0.0
         for x, y, mean, std in train_loader:
@@ -50,9 +53,11 @@ def train_model(model, train_loader, test_loader, epochs=10, epsilon=0.01, lambd
 
             test_loss /= len(test_loader.dataset)
 
+        epoch_time = time.time() - epoch_start_time
+
         train_dollar_loss = np.sqrt(train_loss)
         test_dollar_loss = np.sqrt(test_loss)
-        print(f"Epoch {epoch+1}/{epochs} | Train Dollar Loss: ${train_dollar_loss:.2f} | Test Dollar Loss: ${test_dollar_loss:.2f} | Difference: ${train_dollar_loss - test_dollar_loss:.2f}")
+        print(f"Epoch {epoch + 1}/{epochs} | Train Dollar Loss: ${train_dollar_loss:.2f} | Test Dollar Loss: ${test_dollar_loss:.2f} | Difference: ${train_dollar_loss - test_dollar_loss:.2f} | Time: {epoch_time:.2f}s")
 
         # print(f"Epoch {epoch+1}/{epochs} | Train Loss: {train_loss:.6f} | Test Loss: {test_loss:.6f} | Difference: {train_loss - test_loss:.6f}")
 
@@ -165,7 +170,7 @@ if __name__ == "__main__":
     epsilon = 0.01
     lambda_reg = 1e-7
 
-    data_collection_period = '1y'
+    data_collection_period = '5y'
     training_proportion = 0.8
 
     tickers = [
@@ -174,7 +179,7 @@ if __name__ == "__main__":
     ]
 
     tech = [
-        'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'GOOG', 'META', 'NVDA', 'TSLA', 'AVGO', 'ORCL',
+        'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META', 'NVDA', 'TSLA', 'AVGO', 'ORCL', 'PLTR'
     ]
 
     quantum = [
@@ -183,8 +188,13 @@ if __name__ == "__main__":
 
     model = StockLSTM(input_size=5, hidden_size=hidden_size, forecast_days=forecast_days)
 
-    train_loader, test_loader, testing_samples = get_loaders(tickers, training_proportion, period=data_collection_period, lookback=lookback, forecast_days=forecast_days)
-    trained_model = train_model(model, train_loader, test_loader, epochs=epochs, epsilon=epsilon, lambda_reg=lambda_reg)
+    train_loader, test_loader, testing_samples = get_loaders(tickers, training_proportion,
+                                                             period=data_collection_period, lookback=lookback,
+                                                             forecast_days=forecast_days)
+
+    retrain = False
+
+    trained_model = train_model(model, train_loader, test_loader, epochs=epochs, epsilon=epsilon, lambda_reg=lambda_reg) if True else ...
 
     future_preds = predict_future(trained_model, 'AAPL', lookback=lookback, forecast_days=forecast_days)
     visualize_future(future_preds, ticker='AAPL', lookback=lookback)
