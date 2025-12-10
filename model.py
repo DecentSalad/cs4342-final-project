@@ -32,7 +32,7 @@ class StockLSTM(nn.Module):
         return out
 
 
-def train_model(model, train_loader, test_loader, epochs=10, epsilon=0.01, lambda_reg=0.01):
+def train_model(model, train_loader, test_loader, epochs=10, epsilon=0.01, lambda_reg=0.0001):
     model = model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=epsilon)
     criterion = nn.MSELoss()
@@ -70,7 +70,7 @@ def train_model(model, train_loader, test_loader, epochs=10, epsilon=0.01, lambd
 
             test_loss /= len(test_loader.dataset)
 
-        print(f"Epoch {epoch+1}/{epochs} | Train Loss: {train_loss:.6f} | Test Loss: {test_loss:.6f}")
+        print(f"Epoch {epoch+1}/{epochs} | Train Loss: {train_loss:.6f} | Test Loss: {test_loss:.6f} | Difference: {train_loss - test_loss:.6f}")
 
     return model
 
@@ -110,21 +110,26 @@ def predict(model, sample, mean, std, lookback=10, forecast_days=5):
 
         preds_denorm = preds * std[3] + mean[3]
 
-    return preds
+    return preds_denorm
 
 if __name__ == "__main__":
     print('hello, world!')
 
     # hyperparameters
-    lookback = 10
+    lookback = 80
     forecast_days = 5
     hidden_size = 128
     batch_size = 32
-    epochs = 10
+    epochs = 2
     epsilon = 0.01
-    lambda_reg = 0.01
+    lambda_reg = 1e-7
 
-    tickers = ['AAPL', 'MSFT', 'AMZN', 'GOOGL']
+    data_collection_period = '5y'
+
+    tickers = [
+        'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META', 'SPY', 'RTX', 'PLTR', 'NVDA',
+        'V', 'TSLA', 'WMT', 'IBM', 'ORCL', 'MA', 'JNJ', 'NFLX', 'AVGO', 'CSCO'
+    ]
 
     print(f"Number of stocks: {len(tickers)}")
 
@@ -133,7 +138,7 @@ if __name__ == "__main__":
     for ticker in tickers:
         samples, means, stds = get_samples(
             ticker,
-            period='2y',
+            period=data_collection_period,
             lookback=lookback,
             forecast_days=forecast_days
         )
@@ -145,12 +150,18 @@ if __name__ == "__main__":
     M = np.concatenate(list(all_means.values()), axis=0)
     S = np.concatenate(list(all_stds.values()), axis=0)
 
+    perm = np.random.permutation(len(X))
+
+    X_shuffled = X[perm]
+    M_shuffled = M[perm]
+    S_shuffled = S[perm]
+
     print(np.shape(X), np.shape(M), np.shape(S))
 
     num_training_samples = int(0.8*len(X))
 
-    training_samples = [X[:num_training_samples], M[:num_training_samples], S[:num_training_samples]]
-    testing_samples = [X[num_training_samples:], M[num_training_samples:], S[num_training_samples:]]
+    training_samples = [X_shuffled[:num_training_samples], M_shuffled[:num_training_samples], S_shuffled[:num_training_samples]]
+    testing_samples = [X_shuffled[num_training_samples:], M_shuffled[num_training_samples:], S_shuffled[num_training_samples:]]
 
     print(np.shape(training_samples[0]), np.shape(testing_samples[0]))
 
@@ -178,9 +189,9 @@ if __name__ == "__main__":
         actuals = actuals_norm * std[3] + mean[3]
 
         print("Predicted next 5 days:", preds)
-        print("Actual next 5 days:", actuals_norm)
+        print("Actual next 5 days:", actuals)
 
-        visualize_test(preds, actuals_norm)
+        visualize_test(preds, actuals)
 
 # i changed the code to normalize each sample independent of each other, but right now the predictions all look the same
 # the test loss is also much smaller than the train loss
