@@ -8,7 +8,7 @@ from datetime import datetime
 
 from StockDataset import StockDataset
 from StockLSTM import StockLSTM
-from visualization import visualize_test, visualize_future
+from visualization import visualize_test, visualize_future, visualize_pca
 from yfinance_test import get_samples
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -269,8 +269,6 @@ if __name__ == "__main__":
     # Model save paths
     BASE_MODEL_PATH = os.path.join(MODELS_DIR, 'base_model.pt')
 
-    retrain = True
-
     base_hyperparams = {
         'input_size': 5,
         'hidden_size': hidden_size,
@@ -284,6 +282,8 @@ if __name__ == "__main__":
         'epsilon': epsilon,
         'lambda_reg': lambda_reg,
     }
+
+    retrain = False
 
     if retrain:
         model = StockLSTM(input_size=5, hidden_size=hidden_size, forecast_days=forecast_days)
@@ -355,6 +355,14 @@ if __name__ == "__main__":
 
     future_ionq_preds = predict_future(quantum_model, 'IONQ', lookback=lookback, forecast_days=forecast_days)
     visualize_future(future_ionq_preds, ticker='IONQ', lookback=lookback)
+
+    train_loader, test_loader, _ = get_loaders(
+        tickers, training_proportion,
+        period=data_collection_period, lookback=lookback,
+        forecast_days=forecast_days
+    )
+
+    visualize_pca(trained_model, test_loader, lookback=lookback, input_size=5)
 
     # for i in range(5):
     #     sample = testing_samples[0][i]

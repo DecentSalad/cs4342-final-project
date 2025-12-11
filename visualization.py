@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 
 def visualize_test(predictions, actuals, historical_prices=None, dates=None, ticker='SPY'):
     plt.figure(figsize=(12, 6))
@@ -109,3 +110,93 @@ def visualize_future(predictions, ticker='SPY', lookback=60, period='1y'):
 
     plt.tight_layout()
     plt.show()
+
+def visualize_pca(model, data_loader, lookback=60, input_size=5):
+    import torch
+    import plotly.graph_objects as go
+    from sklearn.decomposition import PCA
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    all_inputs = []
+    all_preds = []
+
+    model.eval()
+    with torch.no_grad():
+        for x, _, _, _ in data_loader:
+            x = x.to(device)
+            preds = model(x)
+
+            pred_scalar = preds.mean(dim=1).cpu().numpy()
+
+            flat_input = x.cpu().numpy().reshape(x.shape[0], -1)
+
+            all_inputs.append(flat_input)
+            all_preds.append(pred_scalar)
+
+    X_flat = np.concatenate(all_inputs, axis=0)
+    y_pred = np.concatenate(all_preds, axis=0)
+
+    pca = PCA(n_components=3)
+    X_pca = pca.fit_transform(X_flat)
+
+    x_min, x_max = X_pca[:, 0].min(), X_pca[:, 0].max()
+    y_min, y_max = X_pca[:, 1].min(), X_pca[:, 1].max()
+
+    padding = 1.0
+    x_range = np.linspace(x_min - padding, x_max + padding, 50)
+    y_range = np.linspace(y_min - padding, y_max + padding, 50)
+    xx, yy = np.meshgrid(x_range, y_range)
+
+    grid_points = np.c_[xx.ravel(), yy.ravel()]
+
+    synthetic_flat = pca.inverse_transform(grid_points)
+    synthetic_inputs = synthetic_flat.reshape(-1, lookback, input_size)
+    synthetic_tensor = torch.tensor(synthetic_inputs, dtype=torch.float32).to(device)
+
+    with torch.no_grad():
+        grid_preds = model(synthetic_tensor)
+        grid_z = grid_preds.mean(dim=1).cpu().numpy()
+
+    Z = grid_z.reshape(xx.shape)
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Surface(
+        z=Z, x=xx, y=yy,
+        colorscale='Viridis',
+        opacity=0.8,
+        name='Model Landscape',
+        colorbar=dict(title='Predicted Price (Norm)')
+    ))
+
+    fig.add_trace(go.Scatter3d(
+        x=X_pca[:, 0],
+        y=X_pca[:, 1],
+        z=y_pred,
+        mode='markers',
+        marker=dict(
+            size=3,
+            color=y_pred,
+            colorscale='Plasma',
+            opacity=0.9
+        ),
+        name='Actual Samples',
+        hovertemplate='PC1: %{x:.2f}<br>PC2: %{y:.2f}<br>Pred: %{z:.2f}<extra></extra>'
+    ))
+
+    fig.update_layout(
+        title='PCA for g(x)',
+        scene=dict(
+            xaxis_title='Principal Component 1',
+            yaxis_title='Principal Component 2',
+            zaxis_title='Model Prediction (yhat)',
+            aspectmode='cube'
+        ),
+        width=1000,
+        height=800,
+        margin=dict(r=20, l=10, b=10, t=40)
+    )
+
+    print(f'Variance: {pca.explained_variance_ratio_}')
+    fig.show()
