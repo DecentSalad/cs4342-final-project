@@ -27,6 +27,8 @@ def get_samples(ticker: str, period='2y', lookback=10, forecast_days=5, cache_di
     cache_file = os.path.join(cache_dir, f"{ticker}_{period}_{lookback}_{forecast_days}.csv")
 
     if os.path.exists(cache_file):
+        print('loading saved data')
+
         df = pd.read_csv(cache_file)
         samples = np.array([np.fromstring(s, sep=' ').reshape(lookback+forecast_days, -1) for s in df['samples']])
         means = np.array([np.fromstring(m, sep=' ') for m in df['means']])
@@ -34,6 +36,8 @@ def get_samples(ticker: str, period='2y', lookback=10, forecast_days=5, cache_di
         sample_dates = np.array([d.split('|') for d in df['sample_dates']])
         sample_tickers = np.array(df['sample_tickers'])
         return samples, means, stds, sample_dates, sample_tickers
+
+    print(f'downloading data for {ticker}')
 
     data = yf.download(ticker, period=period, auto_adjust=True, progress=False)
     prices = data.values

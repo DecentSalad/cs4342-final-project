@@ -255,7 +255,7 @@ if __name__ == "__main__":
     forecast_days = 5
     hidden_size = 128
     batch_size = 64
-    epochs = 15
+    epochs = 10
     epsilon = 0.01
     lambda_reg = 1e-7
     num_layers = 3
@@ -307,7 +307,7 @@ if __name__ == "__main__":
         'lambda_reg': lambda_reg,
     }
 
-    retrain = True
+    retrain = False
 
     if retrain:
         model = StockLSTM(input_size=5, hidden_size=hidden_size, num_layers=num_layers, forecast_days=forecast_days)
@@ -387,31 +387,32 @@ if __name__ == "__main__":
     )
 
     visualize_pca(trained_model, test_loader, lookback=lookback, input_size=5)
+    print('\n')
 
-    # for i in range(5):
-    #     sample = testing_samples[0][i]
-    #     mean = testing_samples[1][i]
-    #     std = testing_samples[2][i]
-    #     dates = testing_samples[3][i]
-    #     viz_ticker = testing_samples[4][i]
-    #
-    #     preds = predict(trained_model, sample, mean, std, lookback=lookback, forecast_days=forecast_days)
-    #
-    #     actuals_norm = sample[lookback:, 3]
-    #     actuals = actuals_norm * std[3] + mean[3]
-    #
-    #     historical_norm = sample[max(0, lookback - 20):lookback, 3]
-    #     historical_prices = historical_norm * std[3] + mean[3]
-    #
-    #     historical_dates = dates[max(0, lookback - 20):lookback].tolist()
-    #     prediction_dates = dates[lookback:].tolist()
-    #     plot_dates = historical_dates + prediction_dates
-    #
-    #     print(f"--- Visualization Sample {i+1} ({viz_ticker}) ---")
-    #     print("Predicted next 5 days:", [float(f"{p:.2f}") for p in preds])
-    #     print("Actual next 5 days:", [float(f"{a:.2f}") for a in actuals])
-    #
-    #     visualize_test(preds, actuals, historical_prices, dates=plot_dates, ticker=viz_ticker)
-    #
-    #     print(f"prediction MSE: {np.mean(np.square(preds - actuals)):.4f}")
-    #     print("\n")
+    for i in range(5):
+        sample = testing_samples[0][i]
+        mean = testing_samples[1][i]
+        std = testing_samples[2][i]
+        dates = testing_samples[3][i]
+        viz_ticker = testing_samples[4][i]
+
+        preds = predict(trained_model, sample, mean, std, lookback=lookback)
+
+        actuals_norm = sample[lookback:, 3]
+        actuals = actuals_norm * std[3] + mean[3]
+
+        historical_norm = sample[max(0, lookback - 20):lookback, 3]
+        historical_prices = historical_norm * std[3] + mean[3]
+
+        historical_dates = dates[max(0, lookback - 20):lookback].tolist()
+        prediction_dates = dates[lookback:].tolist()
+        plot_dates = historical_dates + prediction_dates
+
+        print(f"--- Visualization Sample {i+1} ({viz_ticker}) ---")
+        print("Predicted next 5 days:", [float(f"{p:.2f}") for p in preds])
+        print("Actual next 5 days:", [float(f"{a:.2f}") for a in actuals])
+
+        visualize_test(preds, actuals, historical_prices, dates=plot_dates, ticker=viz_ticker)
+
+        print(f"prediction MSE: {np.mean(np.square(preds - actuals)):.4f}")
+        print("\n")
