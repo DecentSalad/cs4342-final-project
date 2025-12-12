@@ -1,17 +1,17 @@
 import torch
 from torch.utils.data import Dataset
 
+
 class StockDataset(Dataset):
     def __init__(self, dataset, lookback=10, forecast_days=5):
         """
-        dataset: 5-tuple [X, M, S, D, T]
-            X: np.array of shape (num_samples, lookback+forecast_days, 5)
-            M: np.array of shape (num_samples,)
-            S: np.array of shape (num_samples,)
-            D: np.array of shape (num_samples,)
-            T: np.array of shape (num_samples,)
+        dataset: 4-tuple [X, base_prices, D, T]
+            X: np.array of shape (num_samples, lookback+forecast_days, 5) - percent changes
+            base_prices: np.array of shape (num_samples,) - last price in lookback window
+            D: np.array of shape (num_samples, lookback+forecast_days) - dates
+            T: np.array of shape (num_samples,) - ticker symbols
         """
-        self.X, self.M, self.S, self.D, self.T = dataset
+        self.X, self.base_prices, self.D, self.T = dataset
         self.lookback = lookback
         self.forecast_days = forecast_days
 
@@ -22,12 +22,12 @@ class StockDataset(Dataset):
         sample = self.X[idx]
 
         x = sample[:self.lookback]
-        y = sample[self.lookback:]
+
+        y = sample[self.lookback:, 3]
 
         x = torch.tensor(x, dtype=torch.float32)
-        y = torch.tensor(y[:, 3], dtype=torch.float32)
+        y = torch.tensor(y, dtype=torch.float32)
 
-        mean = torch.tensor(self.M[idx], dtype=torch.float32)
-        std = torch.tensor(self.S[idx], dtype=torch.float32)
+        base_price = torch.tensor(self.base_prices[idx], dtype=torch.float32)
 
-        return x, y, mean, std
+        return x, y, base_price
